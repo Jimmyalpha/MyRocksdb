@@ -70,12 +70,30 @@ class AVLTree {
   inline int max(Node *a, Node *b) const {
     return a->Height()>b->Height()?a->Height():b->Height();
   }
+
   bool Equal(const Key& a, const Key& b) const { return (compare_(a, b) == 0); }
   bool LessThan(const Key& a, const Key& b) const {return (compare_(a, b) < 0); }
   // Return true if key is greater than the data stored in "n"
   bool KeyIsAfterNode(const Key& key, Node* n) const{  
     return (n != nullptr) && (compare_(n->key, key) < 0);
   }
+
+ // Return true if key is greater than the data stored in "n"
+  bool KeyIsAfterNode(const Key& key, Node* n) const;
+
+  // Returns the earliest node with a key >= key.
+  // Return nullptr if there is no such node.
+  Node* FindGreaterOrEqual(const Key& key) const{ return FindGreaterOrEqual(key, root);}
+  Node* FindGreaterOrEqual(const Key& key,const Node* x) const;
+  // Return the latest node with a key < key.
+  // Return head_ if there is no such node.
+  // Fills prev[level] with pointer to previous node at "level" for every
+  // level in [0..max_height_-1], if prev is non-null.
+  Node* FindLessThan(const Key& key) const;
+
+  // Return the last node in the list.
+  // Return head_ if list is empty.
+  Node* FindLast() const;
 
  public:
   // Create a new SkipList object that will use "cmp" for comparing keys,
@@ -108,10 +126,10 @@ class AVLTree {
     // The returned iterator is not valid.
     explicit Iterator(const AVLTree* tree);
 
-    // Change the underlying skiplist used for this iterator
+    // Change the avltree used for this iterator
     // This enables us not changing the iterator without deallocating
     // an old one and then allocating a new one
-    void SetTree(const AVLTree* tree);
+    void SetList(const AVLTree* tree);
 
     // Returns true iff the iterator is positioned at a valid node.
     bool Valid() const;
@@ -123,16 +141,24 @@ class AVLTree {
     // Advance to the first entry with a key >= target
     void Seek(const Key& target);
 
+    // Advances to the next position.
+    // REQUIRES: Valid()
+    void Next();
+
+    // Advances to the previous position.
+    // REQUIRES: Valid()
+    void Prev();
+
     // Retreat to the last entry with a key <= target
-    void SeekForPrev(const Key& target);
+    //void SeekForPrev(const Key& target);
 
     // Position at the first entry in list.
     // Final state of iterator is Valid() iff list is not empty.
-    void SeekToFirst();
+    //void SeekToFirst();
 
     // Position at the last entry in list.
     // Final state of iterator is Valid() iff list is not empty.
-    void SeekToLast();
+    //void SeekToLast();
 
    private:
     const AVLTree* tree_;
@@ -150,6 +176,40 @@ struct AVLTree<Key, Comparator>::Node {
 
   Key const key;
 
+  //Find next node in order
+  Node* Next(){
+    if (right_ == nullptr){
+      if (parent_->Left() == this)
+        return parent_;
+      else 
+        return right_;
+    }
+    else {
+      Node* x = right_;
+      while (x->Left()!=nullptr){
+        x = x->Left();
+      }
+      return x;
+    }
+  }
+
+
+  Node* Prev(){
+    if (left_ == nullptr){
+      if (parent_->Right() == this)
+        return parent_;
+      else 
+        return left_;
+    }
+    else{
+      Node* x = left_;
+      while (x->Right()!=nullptr)
+        x = x->Right();
+      return x;
+    }
+    
+  }
+  
   int Height(){
     return height.load(std::memory_order_acquire);
   };
@@ -239,11 +299,11 @@ AVLTree<Key, Comparator>::NewNode(const Key& key) {
 
 template<typename Key, class Comparator>
 inline AVLTree<Key, Comparator>::Iterator::Iterator(const AVLTree* tree) {
-  SetTree(tree);
+  SetList(tree);
 }
 
 template<typename Key, class Comparator>
-inline void AVLTree<Key, Comparator>::Iterator::SetTree(const AVLTree* tree) {
+inline void AVLTree<Key, Comparator>::Iterator::SetList(const AVLTree* tree) {
   tree_ = tree;
   node_ = nullptr;
 }
@@ -259,21 +319,70 @@ inline const Key& AVLTree<Key, Comparator>::Iterator::key() const {
   return node_->key;
 }
 
+
 template<typename Key, class Comparator>
-inline void AVLTree<Key, Comparator>::Iterator::Left() {
+inline void AVLTree<Key, Comparator>::Iterator::Next() {
   assert(Valid());
-  node_ = node_->Left();
+  node_ = node_->Next();
 }
 
 template<typename Key, class Comparator>
-inline void AVLTree<Key, Comparator>::Iterator::Right() {
+inline void AVLTree<Key, Comparator>::Iterator::Prev() {
   // Instead of using explicit "prev" links, we just search for the
   // last node that falls before key.
   assert(Valid());
-  node_ = node_->Right();
+  node_ = node_->Prev();
+  
 }
 
+template<typename Key, class Comparator>
+inline void AVLTree<Key, Comparator>::Iterator::Seek(const Key& target) {
+  node_ = tree_->FindGreaterOrEqual(target);
+}
+
+
+template<typename Key, class Comparator>
+typename AVLTree<Key, Comparator>::Node* 
+AVLTree<Key, Comparator>::FindGreaterOrEqual(const Key& key,const Node* x) const{
+    if (x==nullptr)
+      return x;
+
+    if (Equal(key,x->key))
+      return x;  
+    else if (KeyIsAfterNode(key, x))
+      return FindGreaterOrEqual(key, x->Right());
+
+    else{
+      Node* prev = x->Prev();
+      if (KeyIsAfterNode(key, prev)){
+        return x;
+      }
+      else 
+        return FindGreaterOrEqual(key,x->Prev);
+      
+    } 
+}
+
+
+template<typename Key, class Comparator>
+typename AVLTree<Key, Comparator>::Node* 
+AVLTree<Key, Comparator>::FindLessThan(const Key& key) const{
+
+}
+
+template<typename Key, class Comparator>
+typename AVLTree<Key, Comparator>::Node* 
+AVLTree<Key, Comparator>::FindLast() const{
+    Node * x = root;
+    while (x->Right()!= nullptr){
+      x = x->Right();
+    }
+    return x;
+}
 /*---------------------------------------Tree Operations-------------------------------------*/
+
+
+
 template <typename Key, class Comparator>
 void AVLTree<Key,Comparator>::LL(Node* &t){
     Node* tmp = t->Left();
