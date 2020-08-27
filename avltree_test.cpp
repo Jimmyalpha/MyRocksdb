@@ -1,10 +1,57 @@
-#pragma once
 #include <assert.h>
 #include <stdlib.h>
 #include <atomic>
-#include "port/port.h"
+#include <set>
+#include<string>
+#include<cstring>
+#include<iostream>
+typedef uint64_t Key;
+using namespace std;
+static const char* Encode(const uint64_t* key) {  return reinterpret_cast<const char*>(key);}
 
-namespace ROCKSDB_NAMESPACE {
+static Key Decode(const char* key) {
+  Key rv;
+  memcpy(&rv, key, sizeof(Key));
+  return rv;
+}
+
+struct TestComparator {
+  typedef Key DecodedType;
+
+  static DecodedType decode_key(const char* b) {
+    return Decode(b);
+  }
+
+  int operator()(const char* a, const char* b) const {
+    if (Decode(a) < Decode(b)) {
+      return -1;
+    } else if (Decode(a) > Decode(b)) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+
+  int operator()(const char* a, const DecodedType b) const {
+    if (Decode(a) < b) {
+      return -1;
+    } else if (Decode(a) > b) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+  int operator()(const DecodedType a, const DecodedType b) const {
+    if (a < b) {
+      return -1;
+    } else if (a > b) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+}cmp;
+
 
 template<typename Key, class Comparator>
 class AVLTree {
@@ -422,6 +469,27 @@ bool AVLTree<Key, Comparator>::Contains(const Key& key) const {
 
 }
 
-}  // namespace ROCKSDB_NAMESPACE
 
+
+
+typedef AVLTree<int, TestComparator> TestAVLTree;
+
+TestAVLTree t(cmp);
+
+int main(){
+	
+	for (int i=0;i<100;i++){
+		t.Insert(i);
+	}
+	
+	for (int i=0;i<100;i++){
+		cout<<t.Contains(i)<<endl;
+	}
+	
+	
+	
+	int a;
+	cin>>a;
+	
+}
 

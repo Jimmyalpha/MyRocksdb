@@ -38,7 +38,7 @@ private:
                   compare_(compare),
                   allocator_(allocator) 
             {
-                      avltree_ = new Bucket(compare, allocator);
+                      avltree_ = new Bucket(compare);
             };
   ~AVLTreeRep() {}
   void Insert(KeyHandle handle) override;
