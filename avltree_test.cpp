@@ -1,56 +1,17 @@
-#include <assert.h>
+#include<assert.h>
 #include <stdlib.h>
 #include <atomic>
 #include <set>
 #include<string>
 #include<cstring>
 #include<iostream>
-typedef uint64_t Key;
+#include <set>
+
+
 using namespace std;
-static const char* Encode(const uint64_t* key) {  return reinterpret_cast<const char*>(key);}
+typedef uint64_t Key;
 
-static Key Decode(const char* key) {
-  Key rv;
-  memcpy(&rv, key, sizeof(Key));
-  return rv;
-}
 
-struct TestComparator {
-  typedef Key DecodedType;
-
-  static DecodedType decode_key(const char* b) {
-    return Decode(b);
-  }
-
-  int operator()(const char* a, const char* b) const {
-    if (Decode(a) < Decode(b)) {
-      return -1;
-    } else if (Decode(a) > Decode(b)) {
-      return +1;
-    } else {
-      return 0;
-    }
-  }
-
-  int operator()(const char* a, const DecodedType b) const {
-    if (Decode(a) < b) {
-      return -1;
-    } else if (Decode(a) > b) {
-      return +1;
-    } else {
-      return 0;
-    }
-  }
-  int operator()(const DecodedType a, const DecodedType b) const {
-    if (a < b) {
-      return -1;
-    } else if (a > b) {
-      return +1;
-    } else {
-      return 0;
-    }
-  }
-}cmp;
 
 
 template<typename Key, class Comparator>
@@ -78,6 +39,7 @@ class AVLTree {
     else
       return height(x->Left())-height(x->Right());
   }
+  int max(int a, int b){return a>b?a:b;}
   bool Equal(const Key& a, const Key& b) const { return (compare_(a, b) == 0); }
   bool LessThan(const Key& a, const Key& b) const {return (compare_(a, b) < 0); }
   // Return true if key is greater than the data stored in "n"
@@ -87,7 +49,7 @@ class AVLTree {
   // Returns the earliest node with a key >= key.
   // Return nullptr if there is no such node.
   Node* FindGreaterOrEqual(const Key& key) const{ return FindGreaterOrEqual(key, root);}
-  Node* FindGreaterOrEqual(const Key& key,const Node* x) const;
+  Node* FindGreaterOrEqual(const Key& key, Node* x) const;
   // Return the latest node with a key < key.
   // Return head_ if there is no such node.
   // Fills prev[level] with pointer to previous node at "level" for every
@@ -100,10 +62,10 @@ class AVLTree {
 
  public:
 
-  explicit AVLTree(Comparator cmp);
+  explicit AVLTree(const Comparator cmp);
   // No copying allowed
   AVLTree(const AVLTree&) = delete;
-  void operator=(const AVLTree&) = delete;
+  //void operator=(const AVLTree&) = delete;
   
   // Insert key into the list.
   // REQUIRES: nothing that compares equal to key is currently in the list.
@@ -155,11 +117,16 @@ class AVLTree {
 
     // Position at the first entry in list.
     // Final state of iterator is Valid() iff list is not empty.
-    //void SeekToFirst();
+    void SeekToFirst(){
+      assert(Valid());
+      node_ = tree_.root;
+    }
 
     // Position at the last entry in list.
     // Final state of iterator is Valid() iff list is not empty.
-    //void SeekToLast();
+    void SeekToLast(){
+      assert(false);
+    }
 
    private:
     const AVLTree* tree_;
@@ -169,7 +136,6 @@ class AVLTree {
 
   
 };
-
 // Implementation details follow
 template<typename Key, class Comparator>
 struct AVLTree<Key, Comparator>::Node {
@@ -243,12 +209,14 @@ AVLTree<Key, Comparator>::NewNode(const Key& key) {
 }
 
 template<typename Key, class Comparator>
-inline AVLTree<Key, Comparator>::Iterator::Iterator(const AVLTree* tree) {
+inline AVLTree<Key, Comparator>::Iterator::Iterator(
+  const AVLTree* tree) {
   SetList(tree);
 }
 
 template<typename Key, class Comparator>
-inline void AVLTree<Key, Comparator>::Iterator::SetList(const AVLTree* tree) {
+inline void AVLTree<Key, Comparator>::Iterator::SetList(
+  const AVLTree* tree) {
   tree_ = tree;
   node_ = nullptr;
 }
@@ -288,7 +256,7 @@ inline void AVLTree<Key, Comparator>::Iterator::Seek(const Key& target) {
 
 template<typename Key, class Comparator>
 typename AVLTree<Key, Comparator>::Node* 
-AVLTree<Key, Comparator>::FindGreaterOrEqual(const Key& key,const Node* x) const{
+AVLTree<Key, Comparator>::FindGreaterOrEqual(const Key& key, Node* x) const{
     if (x==nullptr)
       return x;
 
@@ -303,7 +271,7 @@ AVLTree<Key, Comparator>::FindGreaterOrEqual(const Key& key,const Node* x) const
         return x;
       }
       else 
-        return FindGreaterOrEqual(key,x->Prev);
+        return FindGreaterOrEqual(key,x->Prev());
       
     } 
 }
@@ -470,26 +438,71 @@ bool AVLTree<Key, Comparator>::Contains(const Key& key) const {
 }
 
 
+static const char* Encode(const uint64_t* key) {  return reinterpret_cast<const char*>(key);}
+
+static Key Decode(const char* key) {
+  Key rv;
+  memcpy(&rv, key, sizeof(Key));
+  return rv;
+}
+
+struct TestComparator {
+  typedef Key DecodedType;
+
+  static DecodedType decode_key(const char* b) {
+    return Decode(b);
+  }
+
+  int operator()(const char* a, const char* b) const {
+    if (Decode(a) < Decode(b)) {
+      return -1;
+    } else if (Decode(a) > Decode(b)) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+
+  int operator()(const char* a, const DecodedType b) const {
+    if (Decode(a) < b) {
+      return -1;
+    } else if (Decode(a) > b) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+  int operator()(const DecodedType a, const DecodedType b) const {
+    if (a < b) {
+      return -1;
+    } else if (a > b) {
+      return +1;
+    } else {
+      return 0;
+    }
+  }
+}cmp;
 
 
-typedef AVLTree<int, TestComparator> TestAVLTree;
+
+
+typedef AVLTree<Key, TestComparator> TestAVLTree;
 
 TestAVLTree t(cmp);
 
 int main(){
 	
-	for (int i=0;i<100;i++){
+	for (int i=0;i<100000;i++){
 		t.Insert(i);
+		if (i%1000==0)
+			cout<<i<<endl;
 	}
 	
-	for (int i=0;i<100;i++){
-		cout<<t.Contains(i)<<endl;
-	}
+
+	TestAVLTree::Iterator iter(&t);
+	iter.Seek(30000);
+	cout<<iter.key(); 
 	
-	
-	
-	int a;
-	cin>>a;
-	
+
 }
 
